@@ -39,9 +39,10 @@ class FragmentoHistorial : Fragment() {
         val usuarioId = gestorSesion.obtenerUsuarioId()
 
         adaptador = AdaptadorTransaccion { transaccion ->
-            val accion = FragmentoHistorialDirections
-                .accionHistorialADetalle(transaccion.id)
-            findNavController().navigate(accion)
+            val bundle = android.os.Bundle().apply {
+                putInt("transaccionId", transaccion.id)
+            }
+            findNavController().navigate(com.example.wonderbalance.R.id.accion_historial_a_detalle, bundle)
         }
 
         enlace.listaHistorial.layoutManager = LinearLayoutManager(requireContext())

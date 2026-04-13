@@ -9,7 +9,6 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
-import androidx.navigation.fragment.navArgs
 import com.example.wonderbalance.databinding.FragmentoDetalleTransaccionBinding
 import com.example.wonderbalance.datos.entidad.Transaccion
 import com.example.wonderbalance.util.Constantes
@@ -24,7 +23,6 @@ class FragmentoDetalleTransaccion : Fragment() {
     private val enlace get() = _enlace!!
     private val transaccionViewModel: TransaccionViewModel by viewModels()
     private val categoriaViewModel: CategoriaViewModel by viewModels()
-    private val args: FragmentoDetalleTransaccionArgs by navArgs()
     private var transaccionActual: Transaccion? = null
 
     override fun onCreateView(
@@ -41,8 +39,10 @@ class FragmentoDetalleTransaccion : Fragment() {
         val usuarioId = GestorSesion(requireContext()).obtenerUsuarioId()
 
         // Cargar transacción
+        val transaccionIdRecibido = arguments?.getInt("transaccionId") ?: -1
+
         transaccionViewModel.obtenerTodas(usuarioId).observe(viewLifecycleOwner) { lista ->
-            val transaccion = lista.find { it.id == args.transaccionId }
+            val transaccion = lista.find { it.id == transaccionIdRecibido }
             transaccion?.let {
                 transaccionActual = it
                 mostrarDetalle(it, usuarioId)

@@ -82,7 +82,7 @@ class FragmentoAnalitica : Fragment() {
                         val entradasBarra = ingresosAgrupados.entries
                             .mapIndexed { indice, (catId, total) ->
                                 BarEntry(indice.toFloat(), total.toFloat()).also {
-                                    _ = mapaCategorias[catId] ?: "Otro"
+                                    it.data = mapaCategorias[catId] ?: "Otro"
                                 }
                             }
                         val conjuntoBarra = BarDataSet(entradasBarra, "Ingresos").apply {
