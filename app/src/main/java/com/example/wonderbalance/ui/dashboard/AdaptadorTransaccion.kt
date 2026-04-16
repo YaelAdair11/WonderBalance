@@ -18,9 +18,19 @@ class AdaptadorTransaccion(
     ) : RecyclerView.ViewHolder(enlace.root) {
 
         fun vincular(transaccion: Transaccion, nombreCategoria: String) {
+            // Asignar los valores a los TextViews
             enlace.txtCategoria.text = nombreCategoria
             enlace.txtFecha.text = transaccion.fecha
 
+            // NUEVO: Manejar la visibilidad y el texto de la nota
+            if (transaccion.nota.isNullOrBlank()) {
+                enlace.txtNota.visibility = android.view.View.GONE
+            } else {
+                enlace.txtNota.visibility = android.view.View.VISIBLE
+                enlace.txtNota.text = transaccion.nota
+            }
+
+            // Lógica de colores para Gasto vs Ingreso
             if (transaccion.tipo == Constantes.TIPO_GASTO) {
                 enlace.txtMonto.text = "-$%.2f".format(transaccion.monto)
                 enlace.txtMonto.setTextColor(
@@ -32,6 +42,7 @@ class AdaptadorTransaccion(
                     itemView.context.getColor(android.R.color.holo_green_dark)
                 )
             }
+
             enlace.root.setOnClickListener { alHacerClic(transaccion) }
         }
     }

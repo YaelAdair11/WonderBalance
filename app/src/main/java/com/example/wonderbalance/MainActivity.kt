@@ -21,26 +21,36 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.contenedor_nav) as NavHostFragment
         val controladorNav = fragmentoContenedor.navController
 
-        // Si ya hay sesión activa, ir directo al dashboard
         if (gestorSesion.haySesionActiva()) {
             controladorNav.navigate(R.id.fragmentoDashboard)
         }
 
-        // Conectar barra inferior con navegación
         enlace.navInferior.setupWithNavController(controladorNav)
 
-        // Ocultar barra inferior en pantallas de autenticación
+        // Pantallas que NO muestran barra inferior
+        val pantallasOcultas = setOf(
+            R.id.fragmentoAcceso,
+            R.id.fragmentoRegistro,
+            R.id.fragmentoTransaccion,
+            R.id.fragmentoHistorial,
+            R.id.fragmentoDetalleTransaccion,
+            R.id.fragmentoNuevoPresupuesto,
+            R.id.fragmentoNuevaMeta
+        )
+
         controladorNav.addOnDestinationChangedListener { _, destino, _ ->
-            when (destino.id) {
-                R.id.fragmentoAcceso, R.id.fragmentoRegistro -> {
-                    enlace.navInferior.visibility =
-                        android.view.View.GONE
-                }
-                else -> {
-                    enlace.navInferior.visibility =
-                        android.view.View.VISIBLE
-                }
+            if (destino.id in pantallasOcultas) {
+                enlace.navInferior.visibility = android.view.View.GONE
+            } else {
+                enlace.navInferior.visibility = android.view.View.VISIBLE
             }
         }
+    }
+
+    // Botón físico atrás navega correctamente
+    override fun onSupportNavigateUp(): Boolean {
+        val fragmentoContenedor = supportFragmentManager
+            .findFragmentById(R.id.contenedor_nav) as NavHostFragment
+        return fragmentoContenedor.navController.navigateUp() || super.onSupportNavigateUp()
     }
 }

@@ -12,12 +12,16 @@ import com.example.wonderbalance.R
 import com.example.wonderbalance.databinding.FragmentoDashboardBinding
 import com.example.wonderbalance.util.GestorSesion
 import com.example.wonderbalance.viewmodel.TransaccionViewModel
+import com.example.wonderbalance.viewmodel.CategoriaViewModel
 
 class FragmentoDashboard : Fragment() {
 
     private var _enlace: FragmentoDashboardBinding? = null
     private val enlace get() = _enlace!!
+
     private val transaccionViewModel: TransaccionViewModel by viewModels()
+    private val categoriaViewModel: CategoriaViewModel by viewModels() // <-- LÍNEA NUEVA
+
     private lateinit var adaptador: AdaptadorTransaccion
     private lateinit var gestorSesion: GestorSesion
 
@@ -44,6 +48,12 @@ class FragmentoDashboard : Fragment() {
         }
         enlace.listaTransacciones.layoutManager = LinearLayoutManager(requireContext())
         enlace.listaTransacciones.adapter = adaptador
+
+        // NUEVO: Observar categorías y pasarlas al adaptador
+        categoriaViewModel.obtenerTodas(usuarioId).observe(viewLifecycleOwner) { categorias ->
+            val mapaCategorias = categorias.associate { it.id to it.nombre }
+            adaptador.actualizarCategorias(mapaCategorias)
+        }
 
         // Observar balance
         transaccionViewModel.obtenerBalanceGeneral(usuarioId)

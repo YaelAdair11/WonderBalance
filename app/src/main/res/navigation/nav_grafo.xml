@@ -5,7 +5,6 @@
     android:id="@+id/nav_grafo"
     app:startDestination="@id/fragmentoAcceso">
 
-    <!-- Autenticación -->
     <fragment
         android:id="@+id/fragmentoAcceso"
         android:name="com.example.wonderbalance.ui.autenticacion.FragmentoAcceso"
@@ -38,7 +37,6 @@
             app:popUpToInclusive="true" />
     </fragment>
 
-    <!-- Pantallas principales -->
     <fragment
         android:id="@+id/fragmentoDashboard"
         android:name="com.example.wonderbalance.ui.dashboard.FragmentoDashboard"
@@ -55,7 +53,7 @@
     <fragment
         android:id="@+id/fragmentoTransaccion"
         android:name="com.example.wonderbalance.ui.transaccion.FragmentoTransaccion"
-        android:label="Transacción"
+        android:label="Nueva Transacción"
         tools:layout="@layout/fragmento_transaccion">
         <action
             android:id="@+id/accion_transaccion_a_dashboard"
