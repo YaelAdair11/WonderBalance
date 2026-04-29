@@ -167,9 +167,22 @@ class FragmentoTransaccion : Fragment() {
                     nombres
                 )
                 enlace.dropdownCategoria.setAdapter(adaptador)
-                enlace.dropdownCategoria.setOnItemClickListener { _, _, posicion, _ ->
-                    categoriaSeleccionada = listaCategorias[posicion]
+
+                // Refrescar el enlace internamente si la BD cambió
+                val textoActual = enlace.dropdownCategoria.text.toString().trim()
+                if (textoActual.isNotBlank()) {
+                    categoriaSeleccionada = listaCategorias.find { it.nombre.equals(textoActual, ignoreCase = true) }
+                    if (categoriaSeleccionada != null) {
+                        enlace.txtErrorCategoria.visibility = View.GONE
+                        enlace.campoCategoria.error = null
+                    }
+                }
+
+                enlace.dropdownCategoria.setOnItemClickListener { parent, _, posicion, _ ->
+                    val nombreSeleccionado = parent.getItemAtPosition(posicion) as String
+                    categoriaSeleccionada = listaCategorias.find { it.nombre == nombreSeleccionado }
                     enlace.txtErrorCategoria.visibility = View.GONE
+                    enlace.campoCategoria.error = null
                 }
             }
     }
@@ -213,8 +226,8 @@ class FragmentoTransaccion : Fragment() {
 
             // Si el tipo coincide con el seleccionado, autoseleccionar la nueva
             if (tipoCat == tipoSeleccionado) {
-                enlace.dropdownCategoria.setText(nombre)
-                // Se actualizará automáticamente por el observer de cargarCategorias
+                // Usamos 'false' para no activar el filtro del menú
+                enlace.dropdownCategoria.setText(nombre, false)
             }
         }
 
@@ -239,21 +252,25 @@ class FragmentoTransaccion : Fragment() {
         val fecha = enlace.etFecha.text.toString().trim()
         val nota = enlace.etNota.text.toString().trim()
 
-        // CP-01 / CP-03: Validar monto
         if (montoTexto.isBlank()) {
             enlace.campoMonto.error = "Ingresa un monto"
             return
         }
         val monto = montoTexto.toDoubleOrNull()
         if (monto == null || monto <= 0) {
-            // CP-02 / CU-04-CP-03: monto inválido o negativo
             enlace.campoMonto.error = "El monto debe ser mayor a cero"
             enlace.btnGuardar.isEnabled = false
             return
         }
         enlace.campoMonto.error = null
 
-        // CP-03 / CU-04-CP-02: Categoría obligatoria con indicador visual
+        // --- NUEVO: RESCATE DE CATEGORÍA ---
+        // Forzamos a que busque en la base de datos el texto que está escrito
+        val textoCategoria = enlace.dropdownCategoria.text.toString().trim()
+        if (categoriaSeleccionada == null && textoCategoria.isNotBlank()) {
+            categoriaSeleccionada = listaCategorias.find { it.nombre.equals(textoCategoria, ignoreCase = true) }
+        }
+
         if (categoriaSeleccionada == null) {
             enlace.txtErrorCategoria.visibility = View.VISIBLE
             enlace.campoCategoria.error = "Selecciona una categoría"
@@ -261,6 +278,7 @@ class FragmentoTransaccion : Fragment() {
         }
         enlace.txtErrorCategoria.visibility = View.GONE
         enlace.campoCategoria.error = null
+        // -----------------------------------
 
         val transaccion = Transaccion(
             monto = monto,
