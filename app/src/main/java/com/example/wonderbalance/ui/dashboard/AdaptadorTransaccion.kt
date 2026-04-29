@@ -13,16 +13,31 @@ class AdaptadorTransaccion(
     private val alHacerClic: (Transaccion) -> Unit
 ) : ListAdapter<Transaccion, AdaptadorTransaccion.TransaccionViewHolder>(DiffTransaccion()) {
 
-    inner class TransaccionViewHolder(
-        private val enlace: ItemTransaccionBinding
-    ) : RecyclerView.ViewHolder(enlace.root) {
+    private var mapaCategorias: Map<Int, String> = emptyMap()
+
+    // 1. NUEVAS VARIABLES PARA LA MONEDA
+    private var tasaActual: Double = 1.0
+    private var simboloActual: String = "MXN$"
+
+    fun actualizarCategorias(nuevoMapa: Map<Int, String>) {
+        mapaCategorias = nuevoMapa
+        notifyDataSetChanged()
+    }
+
+    // 2. NUEVA FUNCIÓN PARA AVISARLE AL ADAPTADOR DEL CAMBIO
+    fun actualizarMoneda(nuevaTasa: Double, nuevoSimbolo: String) {
+        tasaActual = nuevaTasa
+        simboloActual = nuevoSimbolo
+        notifyDataSetChanged() // Hace que la lista se vuelva a dibujar sola
+    }
+
+    inner class TransaccionViewHolder(private val enlace: ItemTransaccionBinding) :
+        RecyclerView.ViewHolder(enlace.root) {
 
         fun vincular(transaccion: Transaccion, nombreCategoria: String) {
-            // Asignar los valores a los TextViews
             enlace.txtCategoria.text = nombreCategoria
             enlace.txtFecha.text = transaccion.fecha
 
-            // NUEVO: Manejar la visibilidad y el texto de la nota
             if (transaccion.nota.isNullOrBlank()) {
                 enlace.txtNota.visibility = android.view.View.GONE
             } else {
@@ -30,17 +45,15 @@ class AdaptadorTransaccion(
                 enlace.txtNota.text = transaccion.nota
             }
 
-            // Lógica de colores para Gasto vs Ingreso
+            // 3. NUEVO: MULTIPLICAR EL MONTO POR LA TASA DE CAMBIO
+            val montoConvertido = transaccion.monto * tasaActual
+
             if (transaccion.tipo == Constantes.TIPO_GASTO) {
-                enlace.txtMonto.text = "-$%.2f".format(transaccion.monto)
-                enlace.txtMonto.setTextColor(
-                    itemView.context.getColor(android.R.color.holo_red_dark)
-                )
+                enlace.txtMonto.text = "-$simboloActual%.2f".format(montoConvertido)
+                enlace.txtMonto.setTextColor(itemView.context.getColor(android.R.color.holo_red_dark))
             } else {
-                enlace.txtMonto.text = "+$%.2f".format(transaccion.monto)
-                enlace.txtMonto.setTextColor(
-                    itemView.context.getColor(android.R.color.holo_green_dark)
-                )
+                enlace.txtMonto.text = "+$simboloActual%.2f".format(montoConvertido)
+                enlace.txtMonto.setTextColor(itemView.context.getColor(android.R.color.holo_green_dark))
             }
 
             enlace.root.setOnClickListener { alHacerClic(transaccion) }
@@ -48,12 +61,6 @@ class AdaptadorTransaccion(
     }
 
     private val nombresCategorias = mutableMapOf<Int, String>()
-
-    fun actualizarCategorias(mapa: Map<Int, String>) {
-        nombresCategorias.clear()
-        nombresCategorias.putAll(mapa)
-        notifyDataSetChanged()
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransaccionViewHolder {
         val enlace = ItemTransaccionBinding.inflate(

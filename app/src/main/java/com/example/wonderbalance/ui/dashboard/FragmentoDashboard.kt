@@ -127,46 +127,51 @@ class FragmentoDashboard : Fragment() {
     }
 
     private fun convertirYMostrarBalance(monedaDestino: String) {
-        // Si elige pesos, no necesitamos consultar la API
         if (monedaDestino == "MXN") {
             monedaActual = "MXN"
             actualizarTextoBalance(balanceBaseMXN, "MXN")
+            adaptador.actualizarMoneda(1.0, "MXN$") // <- AVISAR A LA LISTA
             return
         }
 
-        // Avisamos al usuario que estamos calculando
         enlace.txtBalance.text = "Calculando..."
 
-        // Conexión a internet en segundo plano
         viewLifecycleOwner.lifecycleScope.launch {
-            // Consultamos cuánto vale 1 Peso (MXN) en la moneda destino (USD o EUR)
             val tasa = monedaRepositorio.obtenerTipoDeCambio("MXN", monedaDestino)
 
             if (tasa != null) {
                 monedaActual = monedaDestino
-                // Multiplicamos nuestro dinero por el tipo de cambio
                 val balanceConvertido = balanceBaseMXN * tasa
                 actualizarTextoBalance(balanceConvertido, monedaDestino)
+
+                // <- AVISAR A LA LISTA DEL NUEVO CÁLCULO
+                val simboloLista = when(monedaDestino) {
+                    "USD" -> "USD$"
+                    "EUR" -> "€"
+                    else -> "MXN$"
+                }
+                adaptador.actualizarMoneda(tasa, simboloLista)
+
             } else {
                 Toast.makeText(requireContext(), "Error de red al obtener tipo de cambio", Toast.LENGTH_SHORT).show()
-                // Si falla el internet, regresamos a mostrar pesos
                 actualizarTextoBalance(balanceBaseMXN, "MXN")
+                adaptador.actualizarMoneda(1.0, "MXN$") // <- RESTAURAR LA LISTA EN CASO DE ERROR
             }
         }
     }
 
     private fun actualizarTextoBalance(cantidad: Double, moneda: String) {
         val simbolo = when (moneda) {
-            "USD" -> "$"
+            "USD" -> "USD$"
             "EUR" -> "€"
             else -> "MXN$"
         }
         enlace.txtBalance.text = "$simbolo %.2f".format(cantidad)
 
-        // Mantener el color rojo si hay deudas
+        // AQUÍ EL CAMBIO A BLANCO
         enlace.txtBalance.setTextColor(
             if (cantidad < 0) requireContext().getColor(android.R.color.holo_red_dark)
-            else requireContext().getColor(android.R.color.black) // O el color de tu diseño (ej. black, white)
+            else requireContext().getColor(android.R.color.white) // <-- CAMBIADO A BLANCO
         )
     }
 }
