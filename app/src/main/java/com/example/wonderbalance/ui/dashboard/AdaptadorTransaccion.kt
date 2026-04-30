@@ -21,7 +21,7 @@ class AdaptadorTransaccion(
 
     fun actualizarCategorias(nuevoMapa: Map<Int, String>) {
         mapaCategorias = nuevoMapa
-        notifyDataSetChanged()
+        notifyItemRangeChanged(0, currentList.size)
     }
 
     // 2. NUEVA FUNCIÓN PARA AVISARLE AL ADAPTADOR DEL CAMBIO
