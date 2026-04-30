@@ -84,6 +84,11 @@
         <argument
             android:name="transaccionId"
             app:argType="integer" />
+
+        <action
+            android:id="@+id/accion_detalle_a_transaccion"
+            app:destination="@id/fragmentoTransaccion" />
+
     </fragment>
 
     <fragment
@@ -123,5 +128,9 @@
         android:name="com.example.wonderbalance.ui.analitica.FragmentoAnalitica"
         android:label="Analítica"
         tools:layout="@layout/fragmento_analitica" />
+
+    <action
+        android:id="@+id/accion_historial_a_detalle"
+        app:destination="@id/fragmentoTransaccion" />
 
 </navigation>

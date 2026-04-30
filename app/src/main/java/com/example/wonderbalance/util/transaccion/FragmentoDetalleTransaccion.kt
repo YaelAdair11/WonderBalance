@@ -1,6 +1,7 @@
 package com.example.wonderbalance.ui.transaccion
 
 import android.app.AlertDialog
+import com.example.wonderbalance.R
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -63,7 +64,11 @@ class FragmentoDetalleTransaccion : Fragment() {
 
         // Botón editar (navegar de regreso a transacción con datos)
         enlace.btnEditar.setOnClickListener {
-            Toast.makeText(requireContext(), "Función de edición próximamente", Toast.LENGTH_SHORT).show()
+            val paquete = android.os.Bundle().apply {
+                putInt("transaccionId", transaccionIdRecibido) // <-- CORREGIDO AQUÍ
+            }
+            // Navegamos al formulario de crear/editar pasándole el ID
+            findNavController().navigate(R.id.accion_detalle_a_transaccion, paquete)
         }
 
         // Observar resultado
