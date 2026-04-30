@@ -14,7 +14,6 @@ import com.example.wonderbalance.ui.dashboard.AdaptadorTransaccion
 import com.example.wonderbalance.util.GestorSesion
 import com.example.wonderbalance.viewmodel.CategoriaViewModel
 import com.example.wonderbalance.viewmodel.TransaccionViewModel
-
 class FragmentoHistorial : Fragment() {
 
     private var _enlace: FragmentoHistorialBinding? = null

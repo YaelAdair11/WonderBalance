@@ -71,8 +71,9 @@ class AdaptadorTransaccion(
 
     override fun onBindViewHolder(holder: TransaccionViewHolder, position: Int) {
         val transaccion = getItem(position)
-        val nombre = nombresCategorias[transaccion.categoriaId] ?: "Sin categoría"
-        holder.vincular(transaccion, nombre)
+
+        val nombreCategoria = mapaCategorias[transaccion.categoriaId] ?: "Sin categoría"
+        holder.vincular(transaccion, nombreCategoria)
     }
 
     class DiffTransaccion : DiffUtil.ItemCallback<Transaccion>() {
