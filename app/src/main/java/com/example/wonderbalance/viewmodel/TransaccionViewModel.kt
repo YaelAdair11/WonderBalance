@@ -72,4 +72,8 @@ class TransaccionViewModel(application: Application) : AndroidViewModel(applicat
             _resultado.value = ResultadoOperacion.Exito("Transacción eliminada")
         }
     }
+
+    suspend fun buscarPorId(id: Int): Transaccion? {
+        return repositorio.buscarPorId(id)
+    }
 }

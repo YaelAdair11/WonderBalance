@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.wonderbalance.R
 import com.example.wonderbalance.databinding.DialogoNuevaCategoriaBinding
@@ -21,6 +22,7 @@ import com.example.wonderbalance.util.GestorSesion
 import com.example.wonderbalance.viewmodel.CategoriaViewModel
 import com.example.wonderbalance.viewmodel.ResultadoOperacion
 import com.example.wonderbalance.viewmodel.TransaccionViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -34,6 +36,8 @@ class FragmentoTransaccion : Fragment() {
     private var categoriaSeleccionada: Categoria? = null
     private var listaCategorias: List<Categoria> = emptyList()
     private var tipoSeleccionado = Constantes.TIPO_GASTO
+
+    private var idTransaccionEdicion: Int = -1
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -49,18 +53,51 @@ class FragmentoTransaccion : Fragment() {
         gestorSesion = GestorSesion(requireContext())
         val usuarioId = gestorSesion.obtenerUsuarioId()
 
-        // Fecha de hoy por defecto
-        val formatoFecha = SimpleDateFormat(Constantes.FORMATO_FECHA, Locale.getDefault())
-        enlace.etFecha.setText(formatoFecha.format(Date()))
+        // --- INICIO DE LÓGICA DE EDICIÓN (AQUÍ DEBE IR) ---
+        idTransaccionEdicion = arguments?.getInt("transaccionId", -1) ?: -1
+
+        if (idTransaccionEdicion != -1) {
+            // MODO EDICIÓN
+            enlace.txtTitulo.text = "Editar Transacción"
+            enlace.btnGuardar.text = "Actualizar"
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                val transaccion = transaccionViewModel.buscarPorId(idTransaccionEdicion)
+
+                if (transaccion != null) {
+                    enlace.etMonto.setText(transaccion.monto.toString())
+                    enlace.etFecha.setText(transaccion.fecha)
+                    enlace.etNota.setText(transaccion.nota ?: "")
+
+                    // Restaurar Gasto o Ingreso
+                    tipoSeleccionado = transaccion.tipo
+                    if (tipoSeleccionado == Constantes.TIPO_GASTO) {
+                        enlace.btnGasto.isChecked = true
+                    } else {
+                        enlace.btnIngreso.isChecked = true
+                    }
+                    actualizarColorBotonTipo(tipoSeleccionado)
+
+                    // Cargar categorías y preseleccionar la correcta
+                    cargarCategorias(usuarioId, transaccion.categoriaId)
+                }
+            }
+        } else {
+            // MODO NUEVO (Comportamiento normal)
+            // Fecha de hoy por defecto solo si es nuevo
+            val formatoFecha = SimpleDateFormat(Constantes.FORMATO_FECHA, Locale.getDefault())
+            enlace.etFecha.setText(formatoFecha.format(Date()))
+
+            cargarCategorias(usuarioId, null)
+            enlace.btnGasto.isChecked = true
+            actualizarColorBotonTipo(Constantes.TIPO_GASTO)
+        }
+        // --- FIN DE LÓGICA DE EDICIÓN ---
 
         // Botón regresar
         enlace.btnRegresar.setOnClickListener {
             findNavController().popBackStack()
         }
-
-        // Selector de tipo: Gasto activo por defecto con color
-        enlace.btnGasto.isChecked = true
-        actualizarColorBotonTipo(Constantes.TIPO_GASTO)
 
         enlace.grupoTipo.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked) {
@@ -73,9 +110,6 @@ class FragmentoTransaccion : Fragment() {
             }
         }
 
-        // Cargar categorías iniciales
-        cargarCategorias(usuarioId)
-
         // Botón agregar nueva categoría
         enlace.btnAgregarCategoria.setOnClickListener {
             mostrarDialogoNuevaCategoria(usuarioId)
@@ -85,7 +119,7 @@ class FragmentoTransaccion : Fragment() {
         enlace.campoFecha.setEndIconOnClickListener { mostrarDatePicker() }
         enlace.etFecha.setOnClickListener { mostrarDatePicker() }
 
-        // Validación en tiempo real del monto — deshabilitar guardar si es inválido
+        // Validación en tiempo real del monto
         enlace.etMonto.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -112,7 +146,12 @@ class FragmentoTransaccion : Fragment() {
             when (resultado) {
                 is ResultadoOperacion.Exito -> {
                     Toast.makeText(requireContext(), resultado.mensaje, Toast.LENGTH_SHORT).show()
-                    findNavController().navigate(R.id.accion_transaccion_a_dashboard)
+                    // Si estamos editando regresamos atras, si no, vamos al dashboard
+                    if(idTransaccionEdicion != -1) {
+                        findNavController().popBackStack()
+                    } else {
+                        findNavController().navigate(R.id.accion_transaccion_a_dashboard)
+                    }
                 }
                 is ResultadoOperacion.Error -> {
                     Toast.makeText(requireContext(), resultado.mensaje, Toast.LENGTH_SHORT).show()
@@ -134,7 +173,6 @@ class FragmentoTransaccion : Fragment() {
     }
 
     private fun actualizarColorBotonTipo(tipo: String) {
-        // Borramos la línea de 'colorActivo' que causaba el error
         if (tipo == Constantes.TIPO_GASTO) {
             enlace.btnGasto.backgroundTintList =
                 android.content.res.ColorStateList.valueOf(
@@ -156,25 +194,35 @@ class FragmentoTransaccion : Fragment() {
         }
     }
 
-    private fun cargarCategorias(usuarioId: Int) {
+    private fun cargarCategorias(usuarioId: Int, categoriaIdPreseleccionada: Int? = null) {
         categoriaViewModel.obtenerPorTipo(usuarioId, tipoSeleccionado)
             .observe(viewLifecycleOwner) { categorias ->
                 listaCategorias = categorias
                 val nombres = categorias.map { it.nombre }
-                val adaptador = ArrayAdapter(
+                val adaptador = android.widget.ArrayAdapter(
                     requireContext(),
                     android.R.layout.simple_dropdown_item_1line,
                     nombres
                 )
                 enlace.dropdownCategoria.setAdapter(adaptador)
 
-                // Refrescar el enlace internamente si la BD cambió
-                val textoActual = enlace.dropdownCategoria.text.toString().trim()
-                if (textoActual.isNotBlank()) {
-                    categoriaSeleccionada = listaCategorias.find { it.nombre.equals(textoActual, ignoreCase = true) }
-                    if (categoriaSeleccionada != null) {
+                // Si venimos de Editar, seleccionamos la categoría guardada
+                if (categoriaIdPreseleccionada != null) {
+                    categoriaSeleccionada = categorias.find { it.id == categoriaIdPreseleccionada }
+                    categoriaSeleccionada?.let { cat ->
+                        enlace.dropdownCategoria.setText(cat.nombre, false)
                         enlace.txtErrorCategoria.visibility = View.GONE
                         enlace.campoCategoria.error = null
+                    }
+                } else {
+                    // Si es nuevo, auto-seleccionar si el texto coincide (ej. al crear categoría nueva)
+                    val textoActual = enlace.dropdownCategoria.text.toString().trim()
+                    if (textoActual.isNotBlank()) {
+                        categoriaSeleccionada = listaCategorias.find { it.nombre.equals(textoActual, ignoreCase = true) }
+                        if (categoriaSeleccionada != null) {
+                            enlace.txtErrorCategoria.visibility = View.GONE
+                            enlace.campoCategoria.error = null
+                        }
                     }
                 }
 
@@ -226,7 +274,6 @@ class FragmentoTransaccion : Fragment() {
 
             // Si el tipo coincide con el seleccionado, autoseleccionar la nueva
             if (tipoCat == tipoSeleccionado) {
-                // Usamos 'false' para no activar el filtro del menú
                 enlace.dropdownCategoria.setText(nombre, false)
             }
         }
@@ -264,11 +311,10 @@ class FragmentoTransaccion : Fragment() {
         }
         enlace.campoMonto.error = null
 
-        // --- NUEVO: RESCATE DE CATEGORÍA ---
-        // Forzamos a que busque en la base de datos el texto que está escrito
         val textoCategoria = enlace.dropdownCategoria.text.toString().trim()
         if (categoriaSeleccionada == null && textoCategoria.isNotBlank()) {
-            categoriaSeleccionada = listaCategorias.find { it.nombre.equals(textoCategoria, ignoreCase = true) }
+            categoriaSeleccionada =
+                listaCategorias.find { it.nombre.equals(textoCategoria, ignoreCase = true) }
         }
 
         if (categoriaSeleccionada == null) {
@@ -278,9 +324,9 @@ class FragmentoTransaccion : Fragment() {
         }
         enlace.txtErrorCategoria.visibility = View.GONE
         enlace.campoCategoria.error = null
-        // -----------------------------------
 
         val transaccion = Transaccion(
+            id = if (idTransaccionEdicion != -1) idTransaccionEdicion else 0,
             monto = monto,
             tipo = tipoSeleccionado,
             categoriaId = categoriaSeleccionada!!.id,
@@ -288,7 +334,19 @@ class FragmentoTransaccion : Fragment() {
             nota = nota,
             usuarioId = usuarioId
         )
-        transaccionViewModel.guardar(transaccion)
+
+        if (idTransaccionEdicion != -1) {
+            transaccionViewModel.actualizar(transaccion)
+            android.widget.Toast.makeText(
+                requireContext(),
+                "Transacción actualizada",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            transaccionViewModel.guardar(transaccion)
+        }
+
+        findNavController().popBackStack()
     }
 
     override fun onDestroyView() {

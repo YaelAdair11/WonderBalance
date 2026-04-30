@@ -14,6 +14,7 @@ import com.example.wonderbalance.ui.dashboard.AdaptadorTransaccion
 import com.example.wonderbalance.util.GestorSesion
 import com.example.wonderbalance.viewmodel.CategoriaViewModel
 import com.example.wonderbalance.viewmodel.TransaccionViewModel
+import com.example.wonderbalance.datos.entidad.Transaccion
 class FragmentoHistorial : Fragment() {
 
     private var _enlace: FragmentoHistorialBinding? = null
@@ -22,6 +23,10 @@ class FragmentoHistorial : Fragment() {
     private val categoriaViewModel: CategoriaViewModel by viewModels()
     private lateinit var adaptador: AdaptadorTransaccion
     private lateinit var gestorSesion: GestorSesion
+
+    private var listaCompletaTransacciones = listOf<Transaccion>()
+
+    private var mapaCategoriasActual = mapOf<Int, String>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -37,6 +42,7 @@ class FragmentoHistorial : Fragment() {
         gestorSesion = GestorSesion(requireContext())
         val usuarioId = gestorSesion.obtenerUsuarioId()
 
+        // 1. Configuración del adaptador y envío del ID
         adaptador = AdaptadorTransaccion { transaccion ->
             val bundle = android.os.Bundle().apply {
                 putInt("transaccionId", transaccion.id)
@@ -47,35 +53,45 @@ class FragmentoHistorial : Fragment() {
         enlace.listaHistorial.layoutManager = LinearLayoutManager(requireContext())
         enlace.listaHistorial.adapter = adaptador
 
-        // Cargar categorías para mostrar nombres
+        // 2. Cargar categorías y guardarlas en memoria para el buscador
         categoriaViewModel.obtenerTodas(usuarioId).observe(viewLifecycleOwner) { categorias ->
-            val mapa = categorias.associate { it.id to it.nombre }
-            adaptador.actualizarCategorias(mapa)
+            mapaCategoriasActual = categorias.associate { it.id to it.nombre }
+            adaptador.actualizarCategorias(mapaCategoriasActual)
+            filtrarLista(enlace.etBusqueda.text.toString())
         }
 
-        // Cargar todas las transacciones
+        // 3. Cargar todas las transacciones en memoria
         transaccionViewModel.obtenerTodas(usuarioId).observe(viewLifecycleOwner) { lista ->
-            mostrarLista(lista.isNullOrEmpty())
-            adaptador.submitList(lista)
+            listaCompletaTransacciones = lista ?: emptyList()
+            filtrarLista(enlace.etBusqueda.text.toString())
         }
 
-        // Búsqueda en tiempo real
+        // 4. Búsqueda en tiempo real desde la memoria
         enlace.etBusqueda.addTextChangedListener { texto ->
-            val busqueda = texto.toString().trim()
-            if (busqueda.isBlank()) {
-                transaccionViewModel.obtenerTodas(usuarioId)
-                    .observe(viewLifecycleOwner) { lista ->
-                        mostrarLista(lista.isNullOrEmpty())
-                        adaptador.submitList(lista)
-                    }
-            } else {
-                transaccionViewModel.buscar(usuarioId, busqueda)
-                    .observe(viewLifecycleOwner) { lista ->
-                        mostrarLista(lista.isNullOrEmpty())
-                        adaptador.submitList(lista)
-                    }
-            }
+            filtrarLista(texto.toString())
         }
+    }
+
+    // 5. Función que filtra por nota o por nombre de categoría
+    private fun filtrarLista(textoConsulta: String) {
+        val busqueda = textoConsulta.trim()
+
+        if (busqueda.isBlank()) {
+            mostrarLista(listaCompletaTransacciones.isEmpty())
+            adaptador.submitList(listaCompletaTransacciones)
+            return
+        }
+
+        val listaFiltrada = listaCompletaTransacciones.filter { transaccion ->
+            val nombreCategoria = mapaCategoriasActual[transaccion.categoriaId] ?: ""
+
+            // Revisa si el texto coincide con la categoría o con la nota
+            nombreCategoria.contains(busqueda, ignoreCase = true) ||
+                    (transaccion.nota?.contains(busqueda, ignoreCase = true) == true)
+        }
+
+        mostrarLista(listaFiltrada.isEmpty())
+        adaptador.submitList(listaFiltrada)
     }
 
     private fun mostrarLista(estaVacia: Boolean) {
