@@ -18,6 +18,10 @@ import kotlinx.coroutines.launch
 import androidx.appcompat.app.AlertDialog
 import android.widget.Toast
 import com.example.wonderbalance.repositorio.MonedaRepositorio
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.example.wonderbalance.datos.red.RedSupabase
+import io.github.jan.supabase.gotrue.auth
 
 class FragmentoDashboard : Fragment() {
 
@@ -52,6 +56,25 @@ class FragmentoDashboard : Fragment() {
 
         // Saludo
         enlace.txtSaludo.text = "Hola, ${gestorSesion.obtenerUsuarioNombre()}"
+        enlace.txtSaludo.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    // 1. Desconectar la cuenta en Supabase
+                    RedSupabase.cliente.auth.signOut()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                // 2. Borrar la memoria del teléfono
+                gestorSesion.cerrarSesion()
+
+                // 3. Regresar a la pantalla de Acceso borrando el historial de pantallas
+                val opciones = androidx.navigation.NavOptions.Builder()
+                    .setPopUpTo(R.id.fragmentoDashboard, true)
+                    .build()
+                findNavController().navigate(R.id.fragmentoAcceso, null, opciones)
+            }
+        }
 
         // RecyclerView
         adaptador = AdaptadorTransaccion { transaccion ->

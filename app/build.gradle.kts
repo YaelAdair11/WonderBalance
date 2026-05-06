@@ -37,6 +37,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.play.services.auth)
     val version_room = "2.7.0"
     val version_lifecycle = "2.8.7"
     val version_nav = "2.8.9"
@@ -74,4 +75,13 @@ dependencies {
     // Retrofit para consumir APIs
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // Motor de red (Ktor) y Supabase
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.5.0"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt")
+    implementation("io.ktor:ktor-client-android:2.3.11")
+
+    // Serialización para que Kotlin entienda los datos de la nube
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 }

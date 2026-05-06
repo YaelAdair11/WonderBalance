@@ -5,14 +5,15 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.example.wonderbalance.datos.basededatos.BaseDeDatos
 import com.example.wonderbalance.datos.entidad.Usuario
-import com.example.wonderbalance.repositorio.UsuarioRepositorio
+import com.example.wonderbalance.repositorio.UsuarioRepositorioSupabase
 import kotlinx.coroutines.launch
 
 class UsuarioViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repositorio: UsuarioRepositorio
+    // 1. Instanciamos tu nuevo repositorio de la nube
+    private val repositorio = UsuarioRepositorioSupabase()
+
     private val _resultadoRegistro = MutableLiveData<ResultadoOperacion>()
     val resultadoRegistro: LiveData<ResultadoOperacion> = _resultadoRegistro
 
@@ -22,26 +23,30 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     private val _usuarioActual = MutableLiveData<Usuario?>()
     val usuarioActual: LiveData<Usuario?> = _usuarioActual
 
-    init {
-        val db = BaseDeDatos.obtenerInstancia(application)
-        repositorio = UsuarioRepositorio(db.usuarioDao())
-    }
-
     fun registrar(nombre: String, correo: String, contrasena: String) {
         viewModelScope.launch {
-            val existente = repositorio.buscarPorCorreo(correo)
-            if (existente != null) {
-                _resultadoRegistro.value = ResultadoOperacion.Error("El correo ya está registrado")
-                return@launch
-            }
-            val nuevoUsuario = Usuario(nombre = nombre, correo = correo, contrasena = contrasena)
-            val id = repositorio.registrar(nuevoUsuario)
-            if (id > 0) {
-                val usuario = repositorio.buscarPorId(id.toInt())
-                _usuarioActual.value = usuario
-                _resultadoRegistro.value = ResultadoOperacion.Exito("Registro exitoso")
+            // Mandamos a llamar a Supabase
+            val exito = repositorio.registrarUsuario(nombre, correo, contrasena)
+
+            if (exito) {
+                // Si se registró bien, iniciamos sesión para recuperar el ID que generó la base de datos
+                val perfilSupabase = repositorio.iniciarSesion(correo, contrasena)
+
+                if (perfilSupabase != null) {
+                    // Mapeamos el perfil de la nube a tu clase local para no romper el GestorSesion
+                    _usuarioActual.value = Usuario(
+                        id = perfilSupabase.id ?: 0,
+                        nombre = perfilSupabase.nombre,
+                        correo = perfilSupabase.correo,
+                        contrasena = "", // Ya no guardamos la contraseña en memoria
+                        moneda = perfilSupabase.moneda
+                    )
+                    _resultadoRegistro.value = ResultadoOperacion.Exito("Registro exitoso en la nube")
+                } else {
+                    _resultadoRegistro.value = ResultadoOperacion.Error("Registro exitoso, pero falló al recuperar perfil")
+                }
             } else {
-                _resultadoRegistro.value = ResultadoOperacion.Error("Error al registrar")
+                _resultadoRegistro.value = ResultadoOperacion.Error("Error al registrar. El correo podría estar en uso.")
             }
         }
     }
@@ -52,19 +57,23 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
                 _resultadoSesion.value = ResultadoOperacion.Error("Campos vacíos")
                 return@launch
             }
-            val usuario = repositorio.iniciarSesion(correo, contrasena)
-            if (usuario != null) {
-                _usuarioActual.value = usuario
+
+            // Consultamos a Supabase
+            val perfilSupabase = repositorio.iniciarSesion(correo, contrasena)
+
+            if (perfilSupabase != null) {
+                // Traducimos el resultado para la interfaz
+                _usuarioActual.value = Usuario(
+                    id = perfilSupabase.id ?: 0,
+                    nombre = perfilSupabase.nombre,
+                    correo = perfilSupabase.correo,
+                    contrasena = "",
+                    moneda = perfilSupabase.moneda
+                )
                 _resultadoSesion.value = ResultadoOperacion.Exito("Sesión iniciada")
             } else {
                 _resultadoSesion.value = ResultadoOperacion.Error("Correo o contraseña incorrectos")
             }
-        }
-    }
-
-    fun cargarUsuario(id: Int) {
-        viewModelScope.launch {
-            _usuarioActual.value = repositorio.buscarPorId(id)
         }
     }
 }
