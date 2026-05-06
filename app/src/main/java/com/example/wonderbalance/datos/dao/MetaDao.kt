@@ -21,4 +21,7 @@ interface MetaDao {
 
     @Query("SELECT * FROM metas WHERE id = :id LIMIT 1")
     suspend fun buscarPorId(id: Int): Meta?
+
+    @Query("UPDATE metas SET montoAcumulado = montoAcumulado + :cantidad WHERE id = :idMeta")
+    suspend fun abonarDinero(idMeta: Int, cantidad: Double)
 }
