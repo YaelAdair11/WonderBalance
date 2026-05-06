@@ -33,7 +33,7 @@ class FragmentoAcceso : Fragment() {
 
         enlace.btnIniciarSesion.setOnClickListener {
             val correo = enlace.etCorreo.text.toString().trim()
-            val contrasena = enlace.etContrasena.text.toString()
+            val contrasena = enlace.etContrasena.text.toString().trim()
             viewModel.iniciarSesion(correo, contrasena)
         }
 

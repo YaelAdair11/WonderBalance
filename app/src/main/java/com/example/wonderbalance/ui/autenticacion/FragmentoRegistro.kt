@@ -35,8 +35,8 @@ class FragmentoRegistro : Fragment() {
         enlace.btnRegistrarse.setOnClickListener {
             val nombre = enlace.etNombre.text.toString().trim()
             val correo = enlace.etCorreo.text.toString().trim()
-            val contrasena = enlace.etContrasena.text.toString()
-            val confirmar = enlace.etConfirmar.text.toString()
+            val contrasena = enlace.etContrasena.text.toString().trim()
+            val confirmar = enlace.etConfirmar.text.toString().trim()
 
             if (nombre.isBlank() || correo.isBlank() || contrasena.isBlank()) {
                 Toast.makeText(requireContext(), "Completa todos los campos", Toast.LENGTH_SHORT).show()
