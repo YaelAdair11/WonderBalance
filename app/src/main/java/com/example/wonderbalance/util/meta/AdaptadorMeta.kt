@@ -9,7 +9,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.wonderbalance.databinding.ItemMetaBinding
 import com.example.wonderbalance.datos.entidad.Meta
 
-class AdaptadorMeta : ListAdapter<Meta, AdaptadorMeta.MetaViewHolder>(DiffMeta()) {
+class AdaptadorMeta(private val alHacerClic: (Meta) -> Unit
+) : ListAdapter<Meta, AdaptadorMeta.MetaViewHolder>(DiffMeta()) {
 
     inner class MetaViewHolder(
         private val enlace: ItemMetaBinding
@@ -35,6 +36,10 @@ class AdaptadorMeta : ListAdapter<Meta, AdaptadorMeta.MetaViewHolder>(DiffMeta()
             } else {
                 enlace.txtCumplida.visibility = View.GONE
                 enlace.txtFechaLimite.visibility = View.VISIBLE
+            }
+
+            enlace.root.setOnClickListener {
+                alHacerClic(meta)
             }
         }
     }

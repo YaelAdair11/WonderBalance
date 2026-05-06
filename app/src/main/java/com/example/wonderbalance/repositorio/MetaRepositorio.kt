@@ -25,4 +25,7 @@ class MetaRepositorio(private val metaDao: MetaDao) {
         val metaActualizada = meta.copy(montoAcumulado = montoNuevo)
         metaDao.actualizar(metaActualizada)
     }
+    suspend fun abonarDinero(idMeta: Int, cantidad: Double) {
+        metaDao.abonarDinero(idMeta, cantidad)
+    }
 }

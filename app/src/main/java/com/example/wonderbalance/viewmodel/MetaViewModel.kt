@@ -10,6 +10,7 @@ import com.example.wonderbalance.datos.entidad.Meta
 import com.example.wonderbalance.repositorio.MetaRepositorio
 import kotlinx.coroutines.launch
 
+
 class MetaViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repositorio: MetaRepositorio
@@ -58,6 +59,11 @@ class MetaViewModel(application: Application) : AndroidViewModel(application) {
             val nuevoMonto = meta.montoAcumulado + abono
             repositorio.actualizarMonto(meta, nuevoMonto)
             _resultado.value = ResultadoOperacion.Exito("Abono registrado")
+        }
+    }
+    fun agregarAbono(idMeta: Int, cantidad: Double) {
+        viewModelScope.launch {
+            repositorio.abonarDinero(idMeta, cantidad)
         }
     }
 }
