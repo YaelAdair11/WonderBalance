@@ -39,4 +39,10 @@ interface TransaccionDao {
 
     @Query("SELECT * FROM transacciones WHERE id = :id LIMIT 1")
     suspend fun buscarPorId(id: Int): Transaccion?
+
+    @Query("SELECT COALESCE(SUM(monto), 0.0) FROM transacciones WHERE usuarioId = :usuarioId AND fecha LIKE :mes || '%' AND tipo = 'INGRESO'")
+    fun obtenerIngresosTotalesPorMes(usuarioId: Int, mes: String): LiveData<Double>
+
+    @Query("SELECT COALESCE(SUM(monto), 0.0) FROM transacciones WHERE usuarioId = :usuarioId AND fecha LIKE :mes || '%' AND tipo = 'GASTO'")
+    fun obtenerGastosTotalesPorMes(usuarioId: Int, mes: String): LiveData<Double>
 }

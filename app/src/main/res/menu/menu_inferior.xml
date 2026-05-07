@@ -12,6 +12,11 @@
         android:title="Presupuestos" />
 
     <item
+        android:id="@+id/fragmentoReporte"
+        android:icon="@android:drawable/ic_menu_today"
+        android:title="Reporte" />
+
+    <item
         android:id="@+id/fragmentoMeta"
         android:icon="@android:drawable/star_on"
         android:title="Metas" />

@@ -41,4 +41,10 @@ class TransaccionRepositorio(private val transaccionDao: TransaccionDao) {
 
     suspend fun buscarPorId(id: Int): Transaccion? =
         transaccionDao.buscarPorId(id)
+
+    fun obtenerIngresosTotalesPorMes(usuarioId: Int, mes: String): LiveData<Double> =
+        transaccionDao.obtenerIngresosTotalesPorMes(usuarioId, mes)
+
+    fun obtenerGastosTotalesPorMes(usuarioId: Int, mes: String): LiveData<Double> =
+        transaccionDao.obtenerGastosTotalesPorMes(usuarioId, mes)
 }

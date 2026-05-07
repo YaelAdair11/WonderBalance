@@ -129,6 +129,12 @@
         android:label="Analítica"
         tools:layout="@layout/fragmento_analitica" />
 
+    <fragment
+        android:id="@+id/fragmentoReporte"
+        android:name="com.example.wonderbalance.ui.reporte.FragmentoReporte"
+        android:label="Reporte"
+        tools:layout="@layout/fragmento_reporte" />
+
     <action
         android:id="@+id/accion_historial_a_detalle"
         app:destination="@id/fragmentoTransaccion" />
