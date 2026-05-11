@@ -31,13 +31,11 @@ class FragmentoAnalitica : Fragment() {
     private val transaccionViewModel: TransaccionViewModel by viewModels()
     private val categoriaViewModel: CategoriaViewModel by viewModels()
 
-    // --- VARIABLES DE ESTADO PARA EL FILTRO DE MES ---
     private val calendarioActual = Calendar.getInstance()
     private var mapaCategorias: Map<Int, String> = emptyMap()
     private var usuarioId: Int = 0
     private var transaccionesLiveData: LiveData<List<Transaccion>>? = null
 
-    // Tus paletas personalizadas
     private val coloresGastos = listOf(
         Color.parseColor("#FF9F43"),
         Color.parseColor("#EE5A24"),
@@ -77,20 +75,16 @@ class FragmentoAnalitica : Fragment() {
 
         usuarioId = GestorSesion(requireContext()).obtenerUsuarioId()
 
-        // Textos por defecto si no hay datos
         enlace.graficaGastos.setNoDataText("¡Excelente! No hay gastos registrados este mes.")
         enlace.graficaIngresos.setNoDataText("Aún no tienes ingresos en este periodo.")
         enlace.graficaGastos.setNoDataTextColor(Color.parseColor("#7F8C8D"))
         enlace.graficaIngresos.setNoDataTextColor(Color.parseColor("#7F8C8D"))
 
-        // 1. Cargamos las categorías una sola vez
         categoriaViewModel.obtenerTodas(usuarioId).observe(viewLifecycleOwner) { categorias ->
             mapaCategorias = categorias.associate { it.id to it.nombre }
-            // En cuanto tenemos las categorías, pedimos las transacciones del mes actual
             cargarDatosDelMes()
         }
 
-        // 2. Configuramos los botones para cambiar de mes
         enlace.btnMesAnterior.setOnClickListener {
             calendarioActual.add(Calendar.MONTH, -1)
             cargarDatosDelMes()
@@ -107,18 +101,14 @@ class FragmentoAnalitica : Fragment() {
     }
 
     private fun cargarDatosDelMes() {
-        // Formatear el mes para la consulta a la Base de Datos (Ej: 2026-05)
         val formatoMesBD = SimpleDateFormat("yyyy-MM", Locale.getDefault())
         val mesFiltro = formatoMesBD.format(calendarioActual.time)
 
-        // Formatear el mes para mostrarlo en pantalla (Ej: Mayo 2026)
         val formatoVisible = SimpleDateFormat("MMMM yyyy", Locale("es", "MX"))
         enlace.txtMes.text = formatoVisible.format(calendarioActual.time).replaceFirstChar { it.uppercase() }
 
-        // MUY IMPORTANTE: Quitamos el "espía" del mes anterior para que no se encimen los datos
         transaccionesLiveData?.removeObservers(viewLifecycleOwner)
 
-        // Pedimos los datos del nuevo mes a la base de datos
         transaccionesLiveData = transaccionViewModel.obtenerPorMes(usuarioId, mesFiltro)
 
         transaccionesLiveData?.observe(viewLifecycleOwner) { transacciones ->
@@ -127,7 +117,7 @@ class FragmentoAnalitica : Fragment() {
     }
 
     private fun dibujarGraficas(transacciones: List<Transaccion>) {
-        // ================= GASTOS =================
+        // GASTOS
         val gastos = transacciones.filter { it.tipo == Constantes.TIPO_GASTO }
         val gastosAgrupados = gastos.groupBy { it.categoriaId }
             .mapValues { entrada -> entrada.value.sumOf { it.monto } }
@@ -168,14 +158,14 @@ class FragmentoAnalitica : Fragment() {
                     horizontalAlignment = Legend.LegendHorizontalAlignment.CENTER
                 }
 
-                animateY(800) // Animación un poco más rápida para que no desespere al cambiar mucho de mes
+                animateY(800)
                 invalidate()
             }
         } else {
             enlace.graficaGastos.clear()
         }
 
-        // ================= INGRESOS =================
+        //INGRESOS
         val ingresos = transacciones.filter { it.tipo == Constantes.TIPO_INGRESO }
         val ingresosAgrupados = ingresos.groupBy { it.categoriaId }
             .mapValues { entrada -> entrada.value.sumOf { it.monto } }
