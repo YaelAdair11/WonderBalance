@@ -81,4 +81,6 @@ dependencies {
     implementation("io.ktor:ktor-client-logging:2.3.11")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+
+    implementation("androidx.biometric:biometric:1.1.0")
 }
