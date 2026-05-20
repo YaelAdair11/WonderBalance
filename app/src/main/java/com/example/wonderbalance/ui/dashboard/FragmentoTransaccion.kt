@@ -1,6 +1,12 @@
 package com.example.wonderbalance.ui.transaccion
 
+import android.Manifest
 import android.app.DatePickerDialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,6 +14,9 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -19,9 +28,12 @@ import com.example.wonderbalance.datos.entidad.Categoria
 import com.example.wonderbalance.datos.entidad.Transaccion
 import com.example.wonderbalance.util.Constantes
 import com.example.wonderbalance.util.GestorSesion
+import com.example.wonderbalance.viewmodel.AlertaPresupuesto
 import com.example.wonderbalance.viewmodel.CategoriaViewModel
 import com.example.wonderbalance.viewmodel.ResultadoOperacion
 import com.example.wonderbalance.viewmodel.TransaccionViewModel
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -53,11 +65,9 @@ class FragmentoTransaccion : Fragment() {
         gestorSesion = GestorSesion(requireContext())
         val usuarioId = gestorSesion.obtenerUsuarioId()
 
-        // --- INICIO DE LÓGICA DE EDICIÓN (AQUÍ DEBE IR) ---
         idTransaccionEdicion = arguments?.getInt("transaccionId", -1) ?: -1
 
         if (idTransaccionEdicion != -1) {
-            // MODO EDICIÓN
             enlace.txtTitulo.text = "Editar Transacción"
             enlace.btnGuardar.text = "Actualizar"
 
@@ -69,7 +79,6 @@ class FragmentoTransaccion : Fragment() {
                     enlace.etFecha.setText(transaccion.fecha)
                     enlace.etNota.setText(transaccion.nota ?: "")
 
-                    // Restaurar Gasto o Ingreso
                     tipoSeleccionado = transaccion.tipo
                     if (tipoSeleccionado == Constantes.TIPO_GASTO) {
                         enlace.btnGasto.isChecked = true
@@ -78,13 +87,10 @@ class FragmentoTransaccion : Fragment() {
                     }
                     actualizarColorBotonTipo(tipoSeleccionado)
 
-                    // Cargar categorías y preseleccionar la correcta
                     cargarCategorias(usuarioId, transaccion.categoriaId)
                 }
             }
         } else {
-            // MODO NUEVO (Comportamiento normal)
-            // Fecha de hoy por defecto solo si es nuevo
             val formatoFecha = SimpleDateFormat(Constantes.FORMATO_FECHA, Locale.getDefault())
             enlace.etFecha.setText(formatoFecha.format(Date()))
 
@@ -92,9 +98,7 @@ class FragmentoTransaccion : Fragment() {
             enlace.btnGasto.isChecked = true
             actualizarColorBotonTipo(Constantes.TIPO_GASTO)
         }
-        // --- FIN DE LÓGICA DE EDICIÓN ---
 
-        // Botón regresar
         enlace.btnRegresar.setOnClickListener {
             findNavController().popBackStack()
         }
@@ -110,16 +114,13 @@ class FragmentoTransaccion : Fragment() {
             }
         }
 
-        // Botón agregar nueva categoría
         enlace.btnAgregarCategoria.setOnClickListener {
             mostrarDialogoNuevaCategoria(usuarioId)
         }
 
-        // Date picker
         enlace.campoFecha.setEndIconOnClickListener { mostrarDatePicker() }
         enlace.etFecha.setOnClickListener { mostrarDatePicker() }
 
-        // Validación en tiempo real del monto
         enlace.etMonto.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -136,18 +137,14 @@ class FragmentoTransaccion : Fragment() {
             }
         })
 
-        // Botón guardar
         enlace.btnGuardar.setOnClickListener {
             guardarTransaccion(usuarioId)
         }
 
-        // Observar resultado de guardar transacción
         transaccionViewModel.resultado.observe(viewLifecycleOwner) { resultado ->
             when (resultado) {
                 is ResultadoOperacion.Exito -> {
                     Toast.makeText(requireContext(), resultado.mensaje, Toast.LENGTH_SHORT).show()
-                    
-                    // Seguridad: Solo navegar si estamos en el destino correcto
                     if (findNavController().currentDestination?.id == R.id.fragmentoTransaccion) {
                         if(idTransaccionEdicion != -1) {
                             findNavController().popBackStack()
@@ -162,7 +159,6 @@ class FragmentoTransaccion : Fragment() {
             }
         }
 
-        // Observar resultado de crear categoría
         categoriaViewModel.resultado.observe(viewLifecycleOwner) { resultado ->
             when (resultado) {
                 is ResultadoOperacion.Exito -> {
@@ -173,6 +169,59 @@ class FragmentoTransaccion : Fragment() {
                 }
             }
         }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            transaccionViewModel.alertaPresupuesto.collectLatest { alerta ->
+                manejarAlertaPresupuesto(alerta)
+            }
+        }
+    }
+
+    private fun manejarAlertaPresupuesto(alerta: AlertaPresupuesto) {
+        val titulo = "Alerta de Presupuesto"
+        val mensaje = when (alerta) {
+            is AlertaPresupuesto.Excedido -> "Has superado el 100% de tu presupuesto."
+            is AlertaPresupuesto.Peligro -> "Has alcanzado el ${alerta.porcentaje}% de tu presupuesto."
+        }
+
+        if (tienePermisoNotificaciones()) {
+            mostrarNotificacionLocal(titulo, mensaje)
+        } else {
+            Snackbar.make(enlace.root, mensaje, Snackbar.LENGTH_LONG)
+                .setBackgroundTint(android.graphics.Color.RED)
+                .setTextColor(android.graphics.Color.WHITE)
+                .show()
+        }
+    }
+
+    private fun tienePermisoNotificaciones(): Boolean {
+        val manager = NotificationManagerCompat.from(requireContext())
+        if (!manager.areNotificationsEnabled()) return false
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+
+    private fun mostrarNotificacionLocal(titulo: String, mensaje: String) {
+        val canalId = "alerta_presupuesto"
+        val notificationManager = requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val canal = NotificationChannel(canalId, "Alertas de Gasto", NotificationManager.IMPORTANCE_HIGH)
+            notificationManager.createNotificationChannel(canal)
+        }
+
+        val builder = NotificationCompat.Builder(requireContext(), canalId)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(titulo)
+            .setContentText(mensaje)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+
+        notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
     }
 
     private fun actualizarColorBotonTipo(tipo: String) {
@@ -202,14 +251,13 @@ class FragmentoTransaccion : Fragment() {
             .observe(viewLifecycleOwner) { categorias ->
                 listaCategorias = categorias
                 val nombres = categorias.map { it.nombre }
-                val adaptador = android.widget.ArrayAdapter(
+                val adaptador = ArrayAdapter(
                     requireContext(),
                     android.R.layout.simple_dropdown_item_1line,
                     nombres
                 )
                 enlace.dropdownCategoria.setAdapter(adaptador)
 
-                // Si venimos de Editar, seleccionamos la categoría guardada
                 if (categoriaIdPreseleccionada != null) {
                     categoriaSeleccionada = categorias.find { it.id == categoriaIdPreseleccionada }
                     categoriaSeleccionada?.let { cat ->
@@ -218,7 +266,6 @@ class FragmentoTransaccion : Fragment() {
                         enlace.campoCategoria.error = null
                     }
                 } else {
-                    // Si es nuevo, auto-seleccionar si el texto coincide (ej. al crear categoría nueva)
                     val textoActual = enlace.dropdownCategoria.text.toString().trim()
                     if (textoActual.isNotBlank()) {
                         categoriaSeleccionada = listaCategorias.find { it.nombre.equals(textoActual, ignoreCase = true) }
@@ -241,7 +288,6 @@ class FragmentoTransaccion : Fragment() {
     private fun mostrarDialogoNuevaCategoria(usuarioId: Int) {
         val dialogoEnlace = DialogoNuevaCategoriaBinding.inflate(layoutInflater)
 
-        // Pre-seleccionar el tipo actual
         if (tipoSeleccionado == Constantes.TIPO_GASTO) {
             dialogoEnlace.btnTipoGasto.isChecked = true
         } else {
@@ -275,7 +321,6 @@ class FragmentoTransaccion : Fragment() {
             categoriaViewModel.guardar(nuevaCategoria)
             dialogo.dismiss()
 
-            // Si el tipo coincide con el seleccionado, autoseleccionar la nueva
             if (tipoCat == tipoSeleccionado) {
                 enlace.dropdownCategoria.setText(nombre, false)
             }
@@ -289,7 +334,7 @@ class FragmentoTransaccion : Fragment() {
         DatePickerDialog(
             requireContext(),
             { _, anio, mes, dia ->
-                enlace.etFecha.setText("%04d-%02d-%02d".format(anio, mes + 1, dia))
+                enlace.etFecha.setText(String.format(Locale.getDefault(), "%04d-%02d-%02d", anio, mes + 1, dia))
             },
             calendario.get(Calendar.YEAR),
             calendario.get(Calendar.MONTH),

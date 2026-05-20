@@ -8,24 +8,38 @@ import androidx.lifecycle.viewModelScope
 import com.example.wonderbalance.datos.basededatos.BaseDeDatos
 import com.example.wonderbalance.datos.entidad.Transaccion
 import com.example.wonderbalance.repositorio.TransaccionRepositorio
+import com.example.wonderbalance.repositorio.PresupuestoRepositorio
+import com.example.wonderbalance.util.Constantes
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.Locale
+
+sealed class AlertaPresupuesto {
+    data class Peligro(val porcentaje: Int) : AlertaPresupuesto()
+    object Excedido : AlertaPresupuesto()
+}
 
 class TransaccionViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repositorio: TransaccionRepositorio
+    private val presupuestoRepositorio: PresupuestoRepositorio
     private val _resultado = MutableLiveData<ResultadoOperacion>()
     val resultado: LiveData<ResultadoOperacion> = _resultado
 
-    // --- ADICIÓN PARA CU-16 ---
+    private val _alertaPresupuesto = MutableSharedFlow<AlertaPresupuesto>()
+    val alertaPresupuesto = _alertaPresupuesto.asSharedFlow()
+
     private val _transaccionesFiltradas = MutableLiveData<List<Transaccion>?>()
     val transaccionesFiltradas: LiveData<List<Transaccion>?> = _transaccionesFiltradas
 
-    // Guarda los IDs seleccionados para mantener el estado del diálogo
     val idsSeleccionados = mutableListOf<Int>()
 
     init {
         val db = BaseDeDatos.obtenerInstancia(application)
         repositorio = TransaccionRepositorio(db.transaccionDao())
+        presupuestoRepositorio = PresupuestoRepositorio(db.presupuestoDao())
     }
 
     fun obtenerTodas(usuarioId: Int): LiveData<List<Transaccion>> =
@@ -55,10 +69,36 @@ class TransaccionViewModel(application: Application) : AndroidViewModel(applicat
             }
             val id = repositorio.insertar(transaccion)
             if (id > 0) {
+                if (transaccion.tipo == Constantes.TIPO_GASTO) {
+                    verificarLimitePresupuesto(transaccion)
+                }
                 _resultado.value = ResultadoOperacion.Exito("Transacción guardada")
             } else {
                 _resultado.value = ResultadoOperacion.Error("Error al guardar la transacción")
             }
+        }
+    }
+
+    private suspend fun verificarLimitePresupuesto(transaccion: Transaccion) {
+        val cal = Calendar.getInstance()
+        val mes = cal.get(Calendar.MONTH) + 1
+        val anio = cal.get(Calendar.YEAR)
+        val mesString = String.format(Locale.ROOT, "%04d-%02d", anio, mes)
+
+        val presupuesto = presupuestoRepositorio.buscarPorCategoriaYMes(
+            transaccion.usuarioId, transaccion.categoriaId, mes, anio
+        ) ?: return
+
+        val totalGastado = repositorio.obtenerGastoPorCategoriaYMes(
+            transaccion.usuarioId, transaccion.categoriaId, mesString
+        )
+
+        val porcentaje = (totalGastado / presupuesto.montoLimite) * 100
+
+        if (porcentaje >= 100) {
+            _alertaPresupuesto.emit(AlertaPresupuesto.Excedido)
+        } else if (porcentaje >= 80) {
+            _alertaPresupuesto.emit(AlertaPresupuesto.Peligro(porcentaje.toInt()))
         }
     }
 
@@ -84,7 +124,6 @@ class TransaccionViewModel(application: Application) : AndroidViewModel(applicat
         return repositorio.buscarPorId(id)
     }
 
-    // --- ADICIÓN PARA CU-16 ---
     fun aplicarFiltroCategorias(usuarioId: Int, ids: List<Int>) {
         viewModelScope.launch {
             try {
@@ -98,15 +137,14 @@ class TransaccionViewModel(application: Application) : AndroidViewModel(applicat
                     _transaccionesFiltradas.value = lista
                 }
             } catch (e: Exception) {
-                // Ex-01: Error de actualización de UI
                 _resultado.value = ResultadoOperacion.Error("Error al filtrar: ${e.message}")
-                _transaccionesFiltradas.value = null // Dispara recarga completa en el Fragment
+                _transaccionesFiltradas.value = null
             }
         }
     }
 
     fun limpiarFiltros() {
         idsSeleccionados.clear()
-        _transaccionesFiltradas.value = null // Indica al Fragment que use la lista completa
+        _transaccionesFiltradas.value = null
     }
 }
