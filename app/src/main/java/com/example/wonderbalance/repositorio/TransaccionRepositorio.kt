@@ -47,4 +47,8 @@ class TransaccionRepositorio(private val transaccionDao: TransaccionDao) {
 
     fun obtenerGastosTotalesPorMes(usuarioId: Int, mes: String): LiveData<Double> =
         transaccionDao.obtenerGastosTotalesPorMes(usuarioId, mes)
+
+    // --- ADICIÓN PARA CU-16 ---
+    suspend fun obtenerPorCategorias(usuarioId: Int, categoriaIds: List<Int>): List<Transaccion> =
+        transaccionDao.obtenerPorCategoriasLista(usuarioId, categoriaIds)
 }

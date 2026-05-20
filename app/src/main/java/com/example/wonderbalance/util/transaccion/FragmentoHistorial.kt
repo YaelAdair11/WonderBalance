@@ -16,6 +16,8 @@ import com.example.wonderbalance.util.GestorSesion
 import com.example.wonderbalance.viewmodel.CategoriaViewModel
 import com.example.wonderbalance.viewmodel.TransaccionViewModel
 import com.example.wonderbalance.datos.entidad.Transaccion
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+
 class FragmentoHistorial : Fragment() {
 
     private var _enlace: FragmentoHistorialBinding? = null
@@ -72,28 +74,67 @@ class FragmentoHistorial : Fragment() {
         enlace.etBusqueda.addTextChangedListener { texto ->
             filtrarLista(texto.toString())
         }
+
+        // --- ADICIÓN CU-16: Listener para el botón de filtros ---
+        enlace.btnFiltrar.setOnClickListener {
+            mostrarDialogoCategorias()
+        }
+
+        // --- ADICIÓN CU-16: Observar cambios en el filtro de categorías ---
+        transaccionViewModel.transaccionesFiltradas.observe(viewLifecycleOwner) {
+            filtrarLista(enlace.etBusqueda.text.toString())
+        }
     }
 
-    // 5. Función que filtra por nota o por nombre de categoría
+    // 5. Función que filtra por nota o por nombre de categoría (Lógica Unificada)
     private fun filtrarLista(textoConsulta: String) {
         val busqueda = textoConsulta.trim()
+        
+        // Usamos el filtro de categorías como base si existe
+        val listaBase = transaccionViewModel.transaccionesFiltradas.value ?: listaCompletaTransacciones
 
         if (busqueda.isBlank()) {
-            mostrarLista(listaCompletaTransacciones.isEmpty())
-            adaptador.submitList(listaCompletaTransacciones)
+            mostrarLista(listaBase.isEmpty())
+            adaptador.submitList(listaBase)
             return
         }
 
-        val listaFiltrada = listaCompletaTransacciones.filter { transaccion ->
+        val listaFiltrada = listaBase.filter { transaccion ->
             val nombreCategoria = mapaCategoriasActual[transaccion.categoriaId] ?: ""
-
-            // Revisa si el texto coincide con la categoría o con la nota
             nombreCategoria.contains(busqueda, ignoreCase = true) ||
                     (transaccion.nota?.contains(busqueda, ignoreCase = true) == true)
         }
 
         mostrarLista(listaFiltrada.isEmpty())
         adaptador.submitList(listaFiltrada)
+    }
+
+    // --- ADICIÓN CU-16: Menú de selección de categorías ---
+    private fun mostrarDialogoCategorias() {
+        val categoriasArr = mapaCategoriasActual.values.toTypedArray()
+        val idsArr = mapaCategoriasActual.keys.toIntArray()
+        
+        val seleccionados = BooleanArray(categoriasArr.size) { i ->
+            transaccionViewModel.idsSeleccionados.contains(idsArr[i])
+        }
+
+        val temporalSeleccion = transaccionViewModel.idsSeleccionados.toMutableList()
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Filtrar por categoría")
+            .setMultiChoiceItems(categoriasArr, seleccionados) { _, index, isChecked ->
+                if (isChecked) temporalSeleccion.add(idsArr[index])
+                else temporalSeleccion.remove(idsArr[index])
+            }
+            .setPositiveButton("Aplicar") { _, _ ->
+                val usuarioId = gestorSesion.obtenerUsuarioId()
+                transaccionViewModel.aplicarFiltroCategorias(usuarioId, temporalSeleccion)
+            }
+            .setNeutralButton("Limpiar") { _, _ ->
+                transaccionViewModel.limpiarFiltros()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun mostrarLista(estaVacia: Boolean) {

@@ -16,6 +16,13 @@ class TransaccionViewModel(application: Application) : AndroidViewModel(applicat
     private val _resultado = MutableLiveData<ResultadoOperacion>()
     val resultado: LiveData<ResultadoOperacion> = _resultado
 
+    // --- ADICIÓN PARA CU-16 ---
+    private val _transaccionesFiltradas = MutableLiveData<List<Transaccion>?>()
+    val transaccionesFiltradas: LiveData<List<Transaccion>?> = _transaccionesFiltradas
+
+    // Guarda los IDs seleccionados para mantener el estado del diálogo
+    val idsSeleccionados = mutableListOf<Int>()
+
     init {
         val db = BaseDeDatos.obtenerInstancia(application)
         repositorio = TransaccionRepositorio(db.transaccionDao())
@@ -75,5 +82,31 @@ class TransaccionViewModel(application: Application) : AndroidViewModel(applicat
 
     suspend fun buscarPorId(id: Int): Transaccion? {
         return repositorio.buscarPorId(id)
+    }
+
+    // --- ADICIÓN PARA CU-16 ---
+    fun aplicarFiltroCategorias(usuarioId: Int, ids: List<Int>) {
+        viewModelScope.launch {
+            try {
+                idsSeleccionados.clear()
+                idsSeleccionados.addAll(ids)
+                
+                if (ids.isEmpty()) {
+                    limpiarFiltros()
+                } else {
+                    val lista = repositorio.obtenerPorCategorias(usuarioId, ids)
+                    _transaccionesFiltradas.value = lista
+                }
+            } catch (e: Exception) {
+                // Ex-01: Error de actualización de UI
+                _resultado.value = ResultadoOperacion.Error("Error al filtrar: ${e.message}")
+                _transaccionesFiltradas.value = null // Dispara recarga completa en el Fragment
+            }
+        }
+    }
+
+    fun limpiarFiltros() {
+        idsSeleccionados.clear()
+        _transaccionesFiltradas.value = null // Indica al Fragment que use la lista completa
     }
 }

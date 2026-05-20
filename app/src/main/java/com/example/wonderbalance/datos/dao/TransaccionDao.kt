@@ -45,4 +45,8 @@ interface TransaccionDao {
 
     @Query("SELECT COALESCE(SUM(monto), 0.0) FROM transacciones WHERE usuarioId = :usuarioId AND fecha LIKE :mes || '%' AND tipo = 'GASTO'")
     fun obtenerGastosTotalesPorMes(usuarioId: Int, mes: String): LiveData<Double>
+
+    // --- ADICIÓN PARA CU-16 ---
+    @Query("SELECT * FROM transacciones WHERE usuarioId = :usuarioId AND categoriaId IN (:categoriaIds) ORDER BY fecha DESC")
+    suspend fun obtenerPorCategoriasLista(usuarioId: Int, categoriaIds: List<Int>): List<Transaccion>
 }
