@@ -146,11 +146,14 @@ class FragmentoTransaccion : Fragment() {
             when (resultado) {
                 is ResultadoOperacion.Exito -> {
                     Toast.makeText(requireContext(), resultado.mensaje, Toast.LENGTH_SHORT).show()
-                    // Si estamos editando regresamos atras, si no, vamos al dashboard
-                    if(idTransaccionEdicion != -1) {
-                        findNavController().popBackStack()
-                    } else {
-                        findNavController().navigate(R.id.accion_transaccion_a_dashboard)
+                    
+                    // Seguridad: Solo navegar si estamos en el destino correcto
+                    if (findNavController().currentDestination?.id == R.id.fragmentoTransaccion) {
+                        if(idTransaccionEdicion != -1) {
+                            findNavController().popBackStack()
+                        } else {
+                            findNavController().navigate(R.id.accion_transaccion_a_dashboard)
+                        }
                     }
                 }
                 is ResultadoOperacion.Error -> {
@@ -337,16 +340,9 @@ class FragmentoTransaccion : Fragment() {
 
         if (idTransaccionEdicion != -1) {
             transaccionViewModel.actualizar(transaccion)
-            android.widget.Toast.makeText(
-                requireContext(),
-                "Transacción actualizada",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
         } else {
             transaccionViewModel.guardar(transaccion)
         }
-
-        findNavController().popBackStack()
     }
 
     override fun onDestroyView() {
