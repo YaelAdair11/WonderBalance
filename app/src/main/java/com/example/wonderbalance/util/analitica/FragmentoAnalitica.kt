@@ -13,6 +13,7 @@ import com.example.wonderbalance.databinding.FragmentoAnaliticaBinding
 import com.example.wonderbalance.datos.entidad.Transaccion
 import com.example.wonderbalance.util.Constantes
 import com.example.wonderbalance.util.GestorSesion
+import com.example.wonderbalance.util.ReportExporter
 import com.example.wonderbalance.viewmodel.CategoriaViewModel
 import com.example.wonderbalance.viewmodel.TransaccionViewModel
 import com.github.mikephil.charting.components.Legend
@@ -20,6 +21,7 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.formatter.ValueFormatter
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -96,7 +98,23 @@ class FragmentoAnalitica : Fragment() {
         }
 
         enlace.btnExportar.setOnClickListener {
-            Toast.makeText(requireContext(), "Reporte generado en PDF", Toast.LENGTH_SHORT).show()
+            val transacciones = transaccionesLiveData?.value ?: emptyList()
+            if (transacciones.isEmpty()) {
+                Toast.makeText(requireContext(), "No hay datos para exportar en este periodo", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val opciones = arrayOf("Documento PDF", "Archivo CSV (Excel)")
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Exportar Reporte")
+                .setItems(opciones) { _, which ->
+                    when (which) {
+                        0 -> ReportExporter.compartirPDF(requireContext(), transacciones)
+                        1 -> ReportExporter.compartirCSV(requireContext(), transacciones)
+                    }
+                }
+                .setNegativeButton("Cancelar", null)
+                .show()
         }
     }
 
