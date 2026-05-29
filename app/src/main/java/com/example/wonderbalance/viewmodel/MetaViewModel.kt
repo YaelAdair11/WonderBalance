@@ -38,8 +38,12 @@ class MetaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun actualizar(meta: Meta) {
         viewModelScope.launch {
-            repositorio.actualizar(meta)
-            _resultado.value = ResultadoOperacion.Exito("Meta actualizada")
+            try {
+                repositorio.actualizar(meta)
+                _resultado.value = ResultadoOperacion.Exito("Meta actualizada correctamente")
+            } catch (e: Exception) {
+                _resultado.value = ResultadoOperacion.Error("Error al actualizar la meta")
+            }
         }
     }
 

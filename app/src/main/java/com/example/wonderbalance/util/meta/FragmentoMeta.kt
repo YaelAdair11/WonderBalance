@@ -39,9 +39,14 @@ class FragmentoMeta : Fragment() {
 
         val usuarioId = GestorSesion(requireContext()).obtenerUsuarioId()
 
-        adaptador = AdaptadorMeta { metaSeleccionada ->
-            mostrarDialogoAbono(metaSeleccionada)
-        }
+        adaptador = AdaptadorMeta(
+            alHacerClic = { metaSeleccionada ->
+                mostrarDialogoAbono(metaSeleccionada)
+            },
+            alMantenerPresionado = { metaSeleccionada ->
+                mostrarMenuOpciones(metaSeleccionada)
+            }
+        )
 
         enlace.listaMetas.layoutManager = LinearLayoutManager(requireContext())
         enlace.listaMetas.adapter = adaptador
@@ -60,6 +65,42 @@ class FragmentoMeta : Fragment() {
         enlace.fabNuevaMeta.setOnClickListener {
             findNavController().navigate(R.id.accion_meta_a_nueva)
         }
+    }
+
+    private fun mostrarMenuOpciones(meta: Meta) {
+        val opciones = arrayOf("Editar Meta", "Eliminar Meta")
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Opciones: ${meta.nombre}")
+            .setItems(opciones) { _, indiceSeleccionado ->
+                when (indiceSeleccionado) {
+                    0 -> editarMeta(meta)
+                    1 -> confirmarEliminacion(meta)
+                }
+            }
+            .show()
+    }
+
+    private fun confirmarEliminacion(meta: Meta) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Eliminar Meta")
+            .setMessage("¿Estás seguro de que deseas eliminar la meta '${meta.nombre}'? Perderás el registro de este ahorro.")
+            .setPositiveButton("Eliminar") { _, _ ->
+                metaViewModel.eliminar(meta)
+                Toast.makeText(requireContext(), "Meta eliminada", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun editarMeta(meta: Meta) {
+        // La forma más elegante es reutilizar tu FragmentoNuevaMeta
+        // Le pasamos el ID de la meta en un Bundle
+        val paquete = Bundle().apply {
+            putInt("metaId", meta.id)
+        }
+
+        findNavController().navigate(R.id.accion_meta_a_nueva, paquete)
     }
 
     private fun mostrarDialogoAbono(meta: Meta) {

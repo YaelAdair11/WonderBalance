@@ -9,7 +9,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.wonderbalance.databinding.ItemMetaBinding
 import com.example.wonderbalance.datos.entidad.Meta
 
-class AdaptadorMeta(private val alHacerClic: (Meta) -> Unit
+class AdaptadorMeta(
+    private val alHacerClic: (Meta) -> Unit,
+    private val alMantenerPresionado: (Meta) -> Unit
 ) : ListAdapter<Meta, AdaptadorMeta.MetaViewHolder>(DiffMeta()) {
 
     inner class MetaViewHolder(
@@ -40,6 +42,10 @@ class AdaptadorMeta(private val alHacerClic: (Meta) -> Unit
 
             enlace.root.setOnClickListener {
                 alHacerClic(meta)
+            }
+            enlace.root.setOnLongClickListener {
+                alMantenerPresionado(meta)
+                true
             }
         }
     }

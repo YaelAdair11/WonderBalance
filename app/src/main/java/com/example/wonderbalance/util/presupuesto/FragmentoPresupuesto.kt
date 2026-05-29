@@ -1,15 +1,18 @@
 package com.example.wonderbalance.ui.presupuesto
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.wonderbalance.R
 import com.example.wonderbalance.databinding.FragmentoPresupuestoBinding
+import com.example.wonderbalance.datos.entidad.Presupuesto
 import com.example.wonderbalance.util.GestorSesion
 import com.example.wonderbalance.viewmodel.CategoriaViewModel
 import com.example.wonderbalance.viewmodel.PresupuestoViewModel
@@ -36,7 +39,14 @@ class FragmentoPresupuesto : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val usuarioId = GestorSesion(requireContext()).obtenerUsuarioId()
-        adaptador = AdaptadorPresupuesto()
+        adaptador = AdaptadorPresupuesto(
+            alHacerClic = { presupuesto ->
+                // detalle del presupuesto???
+            },
+            alMantenerPresionado = { presupuestoSeleccionado ->
+                mostrarMenuOpciones(presupuestoSeleccionado)
+            }
+        )
 
         enlace.listaPresupuestos.layoutManager = LinearLayoutManager(requireContext())
         enlace.listaPresupuestos.adapter = adaptador
@@ -77,6 +87,40 @@ class FragmentoPresupuesto : Fragment() {
         enlace.fabNuevoPresupuesto.setOnClickListener {
             findNavController().navigate(R.id.accion_presupuesto_a_nuevo)
         }
+    }
+
+    private fun mostrarMenuOpciones(presupuesto: Presupuesto) {
+        val opciones = arrayOf("Editar Presupuesto", "Eliminar Presupuesto")
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Opciones de Presupuesto")
+            .setItems(opciones) { _, indiceSeleccionado ->
+                when (indiceSeleccionado) {
+                    0 -> editarPresupuesto(presupuesto)
+                    1 -> confirmarEliminacion(presupuesto)
+                }
+            }
+            .show()
+    }
+
+    private fun confirmarEliminacion(presupuesto: Presupuesto) {
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Eliminar Presupuesto")
+            .setMessage("¿Estás seguro de que deseas eliminar este presupuesto? Esto no borrará tus gastos, solo el límite que estableciste.")
+            .setPositiveButton("Eliminar") { _, _ ->
+                presupuestoViewModel.eliminar(presupuesto)
+                Toast.makeText(requireContext(), "Presupuesto eliminado", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun editarPresupuesto(presupuesto: Presupuesto) {
+        val paquete = Bundle().apply {
+            putInt("presupuestoId", presupuesto.id)
+        }
+        findNavController().navigate(R.id.accion_presupuesto_a_nuevo, paquete)
     }
 
     override fun onDestroyView() {

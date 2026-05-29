@@ -9,7 +9,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.wonderbalance.databinding.ItemPresupuestoBinding
 import com.example.wonderbalance.datos.entidad.Presupuesto
 
-class AdaptadorPresupuesto : ListAdapter<Presupuesto, AdaptadorPresupuesto.PresupuestoViewHolder>(DiffPresupuesto()) {
+class AdaptadorPresupuesto(private val alHacerClic: (Presupuesto) -> Unit,
+                           private val alMantenerPresionado: (Presupuesto) -> Unit
+) : ListAdapter<Presupuesto, AdaptadorPresupuesto.PresupuestoViewHolder>(DiffPresupuesto()) {
 
     private val nombresCategorias = mutableMapOf<Int, String>()
     private val gastosActuales = mutableMapOf<Int, Double>()
@@ -61,6 +63,16 @@ class AdaptadorPresupuesto : ListAdapter<Presupuesto, AdaptadorPresupuesto.Presu
                     )
                 enlace.txtExcedido.visibility = View.GONE
                 enlace.txtPorcentaje.setTextColor(android.graphics.Color.parseColor("#7F77DD"))
+            }
+
+            enlace.root.setOnClickListener {
+                alHacerClic(presupuesto)
+            }
+
+            //click largo
+            enlace.root.setOnLongClickListener {
+                alMantenerPresionado(presupuesto)
+                true
             }
         }
     }

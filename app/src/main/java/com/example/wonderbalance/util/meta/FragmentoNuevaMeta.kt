@@ -22,6 +22,9 @@ class FragmentoNuevaMeta : Fragment() {
     private val enlace get() = _enlace!!
     private val metaViewModel: MetaViewModel by viewModels()
 
+    // variable para guardar la meta original si estamos en modo edicion
+    private var metaEnEdicion: Meta? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -35,6 +38,27 @@ class FragmentoNuevaMeta : Fragment() {
 
         val usuarioId = GestorSesion(requireContext()).obtenerUsuarioId()
 
+        // edición???
+        val metaIdRecibida = arguments?.getInt("metaId") ?: -1
+
+        if (metaIdRecibida != -1) {
+            enlace.btnCrear.text = "Guardar Cambios"
+
+            metaViewModel.obtenerTodas(usuarioId).observe(viewLifecycleOwner) { lista ->
+                val meta = lista.find { it.id == metaIdRecibida }
+                if (meta != null && metaEnEdicion == null) {
+                    metaEnEdicion = meta
+                    enlace.etNombre.setText(meta.nombre)
+
+                    val montoSinDecimalesInnecesarios = if (meta.montoObjetivo % 1 == 0.0)
+                        meta.montoObjetivo.toInt().toString() else meta.montoObjetivo.toString()
+
+                    enlace.etMonto.setText(montoSinDecimalesInnecesarios)
+                    enlace.etFecha.setText(meta.fechaLimite)
+                }
+            }
+        }
+
         enlace.campoFecha.setEndIconOnClickListener { mostrarDatePicker() }
         enlace.etFecha.setOnClickListener { mostrarDatePicker() }
 
@@ -47,18 +71,29 @@ class FragmentoNuevaMeta : Fragment() {
                 Toast.makeText(requireContext(), "Completa todos los campos", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+
             val monto = montoTexto.toDoubleOrNull()
             if (monto == null || monto <= 0) {
                 enlace.campoMonto.error = "Monto no válido"
                 return@setOnClickListener
             }
-            val meta = Meta(
-                nombre = nombre,
-                montoObjetivo = monto,
-                fechaLimite = fecha,
-                usuarioId = usuarioId
-            )
-            metaViewModel.guardar(meta)
+
+            if (metaIdRecibida != -1 && metaEnEdicion != null) {
+                val metaActualizada = metaEnEdicion!!.copy(
+                    nombre = nombre,
+                    montoObjetivo = monto,
+                    fechaLimite = fecha
+                )
+                metaViewModel.actualizar(metaActualizada)
+            } else {
+                val metaNueva = Meta(
+                    nombre = nombre,
+                    montoObjetivo = monto,
+                    fechaLimite = fecha,
+                    usuarioId = usuarioId
+                )
+                metaViewModel.guardar(metaNueva)
+            }
         }
 
         metaViewModel.resultado.observe(viewLifecycleOwner) { resultado ->

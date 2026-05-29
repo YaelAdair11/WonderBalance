@@ -53,8 +53,12 @@ class PresupuestoViewModel(application: Application) : AndroidViewModel(applicat
 
     fun actualizar(presupuesto: Presupuesto) {
         viewModelScope.launch {
+            try {
             repositorio.actualizar(presupuesto)
             _resultado.value = ResultadoOperacion.Exito("Presupuesto actualizado")
+            } catch (e: Exception) {
+                _resultado.value = ResultadoOperacion.Error("Error al actualizar el presupuesto")
+            }
         }
     }
 
