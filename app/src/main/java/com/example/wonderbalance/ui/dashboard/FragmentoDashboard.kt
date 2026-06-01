@@ -4,38 +4,35 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.wonderbalance.R
 import com.example.wonderbalance.databinding.FragmentoDashboardBinding
-import com.example.wonderbalance.util.GestorSesion
-import com.example.wonderbalance.viewmodel.TransaccionViewModel
-import com.example.wonderbalance.viewmodel.CategoriaViewModel
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
-import androidx.appcompat.app.AlertDialog
-import android.widget.Toast
-import com.example.wonderbalance.repositorio.MonedaRepositorio
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 import com.example.wonderbalance.datos.red.RedSupabase
+import com.example.wonderbalance.repositorio.MonedaRepositorio
+import com.example.wonderbalance.util.GestorSesion
+import com.example.wonderbalance.viewmodel.CategoriaViewModel
+import com.example.wonderbalance.viewmodel.TransaccionViewModel
 import io.github.jan.supabase.gotrue.auth
+import kotlinx.coroutines.launch
 
 class FragmentoDashboard : Fragment() {
 
     private val monedaRepositorio = MonedaRepositorio()
 
     private var balanceBaseMXN: Double = 0.0
-
     private var monedaActual: String = "MXN"
 
     private var _enlace: FragmentoDashboardBinding? = null
     private val enlace get() = _enlace!!
 
     private val transaccionViewModel: TransaccionViewModel by viewModels()
-    private val categoriaViewModel: CategoriaViewModel by viewModels() // <-- LÍNEA NUEVA
+    private val categoriaViewModel: CategoriaViewModel by viewModels()
 
     private lateinit var adaptador: AdaptadorTransaccion
     private lateinit var gestorSesion: GestorSesion
@@ -54,21 +51,19 @@ class FragmentoDashboard : Fragment() {
         gestorSesion = GestorSesion(requireContext())
         val usuarioId = gestorSesion.obtenerUsuarioId()
 
-        // Saludo
+        // Saludo y Cerrar Sesión
         enlace.txtSaludo.text = "Hola, ${gestorSesion.obtenerUsuarioNombre()}"
         enlace.txtSaludo.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
-                    // 1. Desconectar la cuenta en Supabase
                     RedSupabase.cliente.auth.signOut()
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
 
-                // 2. Borrar la memoria del teléfono
                 gestorSesion.cerrarSesion()
 
-                // 3. Regresar a la pantalla de Acceso borrando el historial de pantallas
+                // regresar a la pantalla de Acceso borrando el historial de pantallas
                 val opciones = androidx.navigation.NavOptions.Builder()
                     .setPopUpTo(R.id.fragmentoDashboard, true)
                     .build()
@@ -83,13 +78,11 @@ class FragmentoDashboard : Fragment() {
         enlace.listaTransacciones.layoutManager = LinearLayoutManager(requireContext())
         enlace.listaTransacciones.adapter = adaptador
 
-        // NUEVO: Observar categorías y pasarlas al adaptador
         categoriaViewModel.obtenerTodas(usuarioId).observe(viewLifecycleOwner) { categorias ->
             val mapaCategorias = categorias.associate { it.id to it.nombre }
             adaptador.actualizarCategorias(mapaCategorias)
         }
 
-        // Observar balance
         transaccionViewModel.obtenerBalanceGeneral(usuarioId)
             .observe(viewLifecycleOwner) { balance ->
                 // Guardamos el balance base siempre en pesos (MXN)
@@ -103,7 +96,7 @@ class FragmentoDashboard : Fragment() {
                 }
             }
 
-        // NUEVO: Al hacer clic en el balance, elegir moneda
+        // Al hacer clic en el balance, elegir moneda
         enlace.txtBalance.setOnClickListener {
             val opciones = arrayOf("MXN (Pesos Mexicanos)", "USD (Dólares)", "EUR (Euros)")
             val codigos = arrayOf("MXN", "USD", "EUR")
@@ -130,7 +123,7 @@ class FragmentoDashboard : Fragment() {
                 }
             }
 
-        // Botones
+        // Botones de acción principal
         enlace.fabNuevaTransaccion.setOnClickListener {
             findNavController().navigate(R.id.accion_dashboard_a_transaccion)
         }
@@ -140,7 +133,10 @@ class FragmentoDashboard : Fragment() {
         }
 
         enlace.fabAnalitica.setOnClickListener {
-            findNavController().navigate(R.id.fragmentoAnalitica)
+            // Buscamos la barra inferior en el MainActivity
+            val barraInferior = requireActivity().findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.nav_inferior)
+            // Le ordenamos que seleccione la pestaña de analítica
+            barraInferior.selectedItemId = R.id.fragmentoAnalitica
         }
     }
 
@@ -153,7 +149,7 @@ class FragmentoDashboard : Fragment() {
         if (monedaDestino == "MXN") {
             monedaActual = "MXN"
             actualizarTextoBalance(balanceBaseMXN, "MXN")
-            adaptador.actualizarMoneda(1.0, "MXN$") // <- AVISAR A LA LISTA
+            adaptador.actualizarMoneda(1.0, "MXN$")
             return
         }
 
@@ -167,7 +163,6 @@ class FragmentoDashboard : Fragment() {
                 val balanceConvertido = balanceBaseMXN * tasa
                 actualizarTextoBalance(balanceConvertido, monedaDestino)
 
-                // <- AVISAR A LA LISTA DEL NUEVO CÁLCULO
                 val simboloLista = when(monedaDestino) {
                     "USD" -> "USD$"
                     "EUR" -> "€"
@@ -178,7 +173,7 @@ class FragmentoDashboard : Fragment() {
             } else {
                 Toast.makeText(requireContext(), "Error de red al obtener tipo de cambio", Toast.LENGTH_SHORT).show()
                 actualizarTextoBalance(balanceBaseMXN, "MXN")
-                adaptador.actualizarMoneda(1.0, "MXN$") // <- RESTAURAR LA LISTA EN CASO DE ERROR
+                adaptador.actualizarMoneda(1.0, "MXN$")
             }
         }
     }
@@ -191,10 +186,10 @@ class FragmentoDashboard : Fragment() {
         }
         enlace.txtBalance.text = "$simbolo %.2f".format(cantidad)
 
-        // AQUÍ EL CAMBIO A BLANCO
+        // color blanco para balance positivo o cero, rojo para negativo
         enlace.txtBalance.setTextColor(
             if (cantidad < 0) requireContext().getColor(android.R.color.holo_red_dark)
-            else requireContext().getColor(android.R.color.white) // <-- CAMBIADO A BLANCO
+            else requireContext().getColor(android.R.color.white)
         )
     }
 }
